@@ -3,6 +3,8 @@ from striprtf.striprtf import rtf_to_text
 import re
 
 
+
+
 def test_data_to_test_output():
     with open("350-401 V41.65_formatted.rtf", "r") as rtf_file:
         with open("test_output.txt", "w") as test_output:
@@ -37,12 +39,13 @@ def question_parser():
                 else:
                     question_info = "ERROR"
                 explanation_info = ""
-                question_database[current_question] = {}
-                question_database[current_question]["Question"] = ""
-                question_database[current_question]["Options"] = {}
-                question_database[current_question]["Answer"] = ""
-                question_database[current_question]["Explanation"] = ""
-                question_database[current_question]["Num of Answers"] = ""
+                question_database[current_question] = {
+                    "Question": "",
+                    "Options": {},
+                    "Answer": "",
+                    "Explanation": "",
+                    "Num of Answers": 0
+                }
                 line_count += 1
                 line_count_2 = 0
                 answer_count = 0
