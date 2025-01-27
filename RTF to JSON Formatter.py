@@ -76,7 +76,7 @@ def question_parser():
                     explanation_info += line
                     question_database[current_question]["Explanation"] = explanation_info + image
 
-    with open("test_output.json", "w") as test_output:
+    with open("Question_DB.json", "w") as test_output:
         test_output.write(json.dumps(question_database, indent=4))
 
 
