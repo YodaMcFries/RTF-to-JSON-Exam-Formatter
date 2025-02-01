@@ -26,13 +26,15 @@ def question_parser():
                 image = f" image_{image_count} "
                 image_count += 1
             line = rtf_to_text(line)
-            line = line.replace("\n", " ")
+            #line = line.replace("\n", " ")
             line = line.replace("\r", " ")
-            line = line.replace(" ", "", 1)
+            #line = line.replace(" ", "", 1)
             line = line
-            # print(line)
-            if re.search('^Q\d+', line):
-                split_line = line.split(" ", 1)
+            #print(line)
+            base_line = line.replace("\n", " ", 1)
+            base_line = base_line.replace(" ", "", 1)
+            if re.search('^Q\d+', base_line):
+                split_line = base_line.split(" ", 1)
                 current_question = split_line[0]
                 if len(split_line) > 1:
                     question_info = split_line[1]
@@ -50,29 +52,35 @@ def question_parser():
                 line_count_2 = 0
                 answer_count = 0
                 print(current_question)
-            elif line_count != 0 and not re.search('Q\d+', line):
+            elif line_count != 0 and not re.search('^Q\d+', base_line):
 
-                if not re.search('^[A-Z][.]', line) and not re.search('^Answer:', line) and answer_count == 0:
+                if not re.search('^[A-Z][.]', base_line) and not re.search('^Answer:', base_line) and answer_count == 0:
                     question_info += line
                     question_database[current_question]["Question"] = question_info.strip() + image
 
-                if re.search('^[A-Z][.]', line):
+                if re.search('^[A-Z][.]', base_line):
+                    line = line.replace("\n", " ", 1)
+                    line = line.replace(" ", "", 1)
                     split_line = line.split(" ", 1)
                     if len(split_line) > 1:
                         question_database[current_question]["Options"][split_line[0]] = split_line[1].strip() + image
                     else:
                         question_database[current_question]["Options"][split_line[0]] = "ERROR"
 
-                elif re.search('^Answer:', line):
+                elif re.search('^Answer:', base_line):
+                    line = line.replace("\n", " ", 1)
+                    line = line.replace(" ", "", 1)
                     split_line = line.split(" ", 1)
                     question_database[current_question]["Num of Answers"] = len(split_line[1].strip())
                     question_database[current_question]["Answer"] = split_line[1].strip()
                     answer_count = 1
 
-                elif line_count_2 == 0 and re.search('^Explanation:', line):
+                elif line_count_2 == 0 and re.search('^Explanation:', base_line):
                     line_count_2 += 1
 
                 elif line_count_2 != 0:
+                    line = line.replace("\n", " ", 1)
+                    line = line.replace(" ", "", 1)
                     explanation_info += line
                     question_database[current_question]["Explanation"] = explanation_info + image
 
