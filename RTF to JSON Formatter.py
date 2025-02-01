@@ -28,7 +28,7 @@ def select_dst_file(default_name):
 class App(Tk):
     def __init__(self):
         super().__init__()
-        with open("formatter_opened_files.txt") as file1:
+        with open("C:\\Users\\benhu\\PycharmProjects\\pythonProject\\Exam Taker\\formatter_opened_files.txt") as file1:
             opened_files = file1.readlines()
             print(opened_files)
         self.geometry("600x300")
@@ -37,6 +37,8 @@ class App(Tk):
         rightframe.pack(side=RIGHT)
         self.Start_Button = (Button(rightframe, text='Start', command=self.open_app))
         self.Start_Button.pack(fill=X)
+        self.Exit_Button = (Button(rightframe, text='Exit', command=self.destroy))
+        self.Exit_Button.pack(fill=X)
 
         counter = 1
         self.file_select = Listbox(self)
@@ -152,4 +154,5 @@ def __main__():
     # question_parser()
 
 
-__main__()
+if __name__ == '__main__':
+    __main__()
