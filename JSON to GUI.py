@@ -173,16 +173,21 @@ class App(Toplevel):
         self.last_question = ""
         self.previous_question = ""
         self.correct_answer = []
-        self.current_question = randrange(1, len(json_data))
-        self.current_index = 1
+        self.current_question = 0
+        self.current_index = 0
+        self.correct_counter = 0
         self.answer_viewed = False
         self.checkbuttons = []
         self.answered_questions = ["", "", "", ""]
 
         # Label to show the current question number
-        self.count_label = Label(self, text=f"Item {self.current_question} of {len(json_data)}  Q{self.current_index}")
+        self.count_label = Label(self,
+                                 text=f"Item {self.current_question} of {len(json_data) - 1}  Q{self.current_index}")
         self.count_label.place(x=15, y=40)
 
+        self.correct_counter_label = Label(self,
+                                           text=f"{self.correct_counter} out of {self.get_amount_of_points()}")
+        self.correct_counter_label.place(relx=1, y=40, anchor=E)
         # Display the question text from the JSON data for the current index
         self.Question = Message(self, text=json_data[f"Q{self.current_question}"]["Question"], width=700)
         self.Question.place(x=15, y=75)
@@ -193,7 +198,8 @@ class App(Toplevel):
         self.answers.place(x=15, y=110)
 
         # StringVar to hold the selected option for the question
-        self.selected_option = StringVar()
+        self.selected_option_radio = StringVar()
+        self.selected_option_check = StringVar()
         self.show_options(amount_of_answers)
 
         # Button to move to the previous question
@@ -208,6 +214,12 @@ class App(Toplevel):
         self.end_exam_button = Button(self, text="End Exam", command=lambda: PopUpConfirmQuit(self))
         self.end_exam_button.place(relx=1, rely=1, anchor='se', width=80)
 
+    def get_amount_of_points(self):
+        counter = 0
+        for i in json_data:
+            counter += json_data[i]["Num of Answers"]
+        return counter
+
     def show_options(self, amount_of_answers, is_previous_question=False):
         if is_previous_question:
             self.current_question = self.previous_question
@@ -218,13 +230,15 @@ class App(Toplevel):
         row_counter = 0
         self.checkbuttons = []
         option_letter = json_data[f"Q{self.current_question}"]["Options"]
+        self.selected_option_radio = StringVar()
+        self.selected_option_check = StringVar()
 
         if amount_of_answers > 1:
             for letter in option_letter:
                 option_question = json_data[f"Q{self.current_question}"]["Options"][letter]
                 option_list = letter + " " + option_question
-                self.selected_option = StringVar()
-                cb = Checkbutton(self, text=option_list, variable=self.selected_option)
+                self.selected_option_check = StringVar()
+                cb = Checkbutton(self, text=option_list, variable=self.selected_option_check)
                 cb.place(x=15, y=130 + row_counter)
                 self.checkbuttons.append(cb)
                 row_counter += 25
@@ -232,8 +246,7 @@ class App(Toplevel):
             for letter in option_letter:
                 option_question = json_data[f"Q{self.current_question}"]["Options"][letter]
                 option_list = letter + " " + option_question  # Display the option with its letter
-                cb = Radiobutton(self, text=option_list, variable=self.selected_option,
-                                 value=letter)
+                cb = Radiobutton(self, text=option_list, variable=self.selected_option_radio, value=letter)
                 cb.place(x=15, y=130 + row_counter)
                 self.checkbuttons.append(cb)
                 row_counter += 25
@@ -247,38 +260,54 @@ class App(Toplevel):
                 answer.destroy()
         """This method is triggered when the "Next" button is clicked to show the next question."""
         if check_answer:
-            random_question = randrange(1, len(json_data))
-            if random_question in self.answered_questions:
+
+            if self.current_index != len(json_data) - 1:
                 random_question = randrange(1, len(json_data))
+                while random_question in self.answered_questions:
+                    random_question = randrange(1, len(json_data))
+                    print("randomise!")
 
-            if self.current_index != len(self.answered_questions) - 3:
-                print(self.current_index, len(self.answered_questions))
-                self.current_question = self.answered_questions[self.current_index + 3]
-                print(self.current_question)
+                if random_question in self.answered_questions:
+                    random_question = randrange(1, len(json_data))
+                    print(random_question)
 
-            elif self.current_question == self.last_question:
-                print(self.answered_questions)
-                self.current_question = random_question
-                print(self.current_question)
-                self.current_index -= 1
+                if self.current_index != len(self.answered_questions) - 4:
+                    print(self.current_index, len(self.answered_questions))
+                    self.current_question = self.answered_questions[self.current_index + 3]
+                    print(self.current_question)
+
+                elif self.current_question == self.last_question:
+                    print(self.answered_questions)
+                    self.current_question = random_question
+                    print(self.current_question)
+                    self.current_index -= 1
+                else:
+                    self.last_question = self.current_question
+                    self.answered_questions.append(self.current_question)
+                    print(self.answered_questions)
+                    self.current_question = random_question
+                    print(self.current_question)
+
+                self.current_index += 1
+
+                if f"Q{self.current_index}" in json_data:
+                    self.count_label.config(
+                        text=f"Item {self.current_question} of {len(json_data) - 1}  Q{self.current_index}")
+                    self.Question.config(text=json_data[f"Q{self.current_question}"]["Question"])
+                    amount_of_answers = json_data[f"Q{self.current_question}"]["Num of Answers"]
+                    self.answers.config(text=f"Please only select {amount_of_answers} answer.")
+                    self.show_options(amount_of_answers)  # Show options for the next question
+                    self.correct_counter_label.config(
+                        text=f"{self.correct_counter} out of {self.get_amount_of_points()}")
+
             else:
-                self.last_question = self.current_question
-                self.answered_questions.append(self.current_question)
-                print(self.answered_questions)
-                self.current_question = random_question
-                print(self.current_question)
-            self.current_index += 1
-
-            if f"Q{self.current_question}" in json_data:
-                self.count_label.config(text=f"Item {self.current_question} of {len(json_data)}  Q{self.current_index}")
-                self.Question.config(text=json_data[f"Q{self.current_question}"]["Question"])
-                amount_of_answers = json_data[f"Q{self.current_question}"]["Num of Answers"]
-                self.answers.config(text=f"Please only select {amount_of_answers} answer.")
-                self.show_options(amount_of_answers)  # Show options for the next question
-            else:
-
+                print("DONE")
                 self.Question.config(text="No more questions.")
                 self.answers.config(text="")
+                self.current_question = 0
+                for cb in self.checkbuttons:
+                    cb.destroy()
+
         elif not self.answer_viewed:
             self.show_correct_answer()
 
@@ -289,7 +318,8 @@ class App(Toplevel):
 
         if f"Q{self.current_question}" in json_data and self.current_index > 0:
             self.previous_question = self.answered_questions[self.current_index + 3]
-            self.count_label.config(text=f"Item {self.previous_question} of {len(json_data)}  Q{self.current_index}")
+            self.count_label.config(
+                text=f"Item {self.previous_question} of {len(json_data) - 1}  Q{self.current_index}")
             self.Question.config(text=json_data[f"Q{self.previous_question}"]["Question"])
             amount_of_answers = json_data[f"Q{self.previous_question}"]["Num of Answers"]
             self.answers.config(text=f"Please only select {amount_of_answers} answer.")
@@ -297,22 +327,31 @@ class App(Toplevel):
 
     def check_answer(self):
         current_answer = json_data[f"Q{self.current_question}"]["Answer"]
-        current_option = self.selected_option.get().strip(".")
-        if current_option == current_answer:
+        current_option = self.selected_option_radio.get().strip(".")
+
+        if self.selected_option_radio.get():
+            current_option = self.selected_option_radio.get().strip(".")
+        elif self.selected_option_check.get():
+            current_option = self.selected_option_check.get().strip(".")
+
+        print(current_option)
+        if current_option == current_answer and current_option != "":
             print("right", current_answer, current_option)
+            self.correct_counter += 1
             return True
-        else:
+        elif current_option != current_answer and self.current_index != 0:
             print("wrong", current_answer, current_option)
             return False
+        else:
+            return True
 
     def show_correct_answer(self):
         if not self.check_answer():
             correct_answer = Message(self,
                                      text=f'Answer: {json_data[f"Q{self.current_question}"]["Answer"]}'
                                           f'\n\nExplanation:\n{json_data[f"Q{self.current_question}"]["Explanation"]}'
-
-                                     , width=700, bg="yellow")
-            correct_answer.place(x=15, y=400)
+                                     , width=950, bg="yellow")
+            correct_answer.place(x=15, y=300)
             self.correct_answer.append(correct_answer)
             self.answer_viewed = True
 
