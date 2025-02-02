@@ -1,15 +1,17 @@
+from tkinter import *
+from tkinter import filedialog
+from tkinter.ttk import *
 import json
 import os
-from tkinter import filedialog
-
 from striprtf.striprtf import rtf_to_text
 import re
-from tkinter import *
 
 
 class DoneWindow(Toplevel):
     def __init__(self, master=None):
         super().__init__(master)
+        self.iconbitmap("C:\\Users\\benhu\\PycharmProjects\\pythonProject\\Exam Taker\\ben_player.ico")
+
         Label(self, text="Formatting is Done!\nDo you want to close the app?").pack()
         Button(self, text='No', command=self.destroy).pack(side=RIGHT, fill=BOTH, padx=5, pady=5)
         Button(self, text='Yes', command=master.destroy).pack(side=RIGHT, fill=BOTH, padx=5, pady=5)
@@ -28,47 +30,43 @@ def select_dst_file(default_name):
 class App(Tk):
     def __init__(self):
         super().__init__()
-        with open("C:\\Users\\benhu\\PycharmProjects\\pythonProject\\Exam Taker\\formatter_opened_files.txt") as file1:
-            opened_files = file1.readlines()
-            print(opened_files)
-        self.geometry("600x300")
 
-        rightframe = Frame(self)
-        rightframe.pack(side=RIGHT)
-        self.Start_Button = (Button(rightframe, text='Start', command=self.open_app))
+        self.style = Style()
+        self.style.theme_use("vista")
+        self.geometry("600x100")
+        self.title("BEN Convertor")
+        self.iconbitmap("C:\\Users\\benhu\\PycharmProjects\\pythonProject\\Exam Taker\\ben_player.ico")
+
+        self.file_path = ""
+        windowframe = Frame(self)
+        windowframe.pack(fill=BOTH)
+        self.Start_Button = Button(windowframe,text='Start', command=self.open_app)
         self.Start_Button.pack(fill=X)
-        self.Exit_Button = (Button(rightframe, text='Exit', command=self.destroy))
-        self.Exit_Button.pack(fill=X)
-
-        counter = 1
-        self.file_select = Listbox(self)
-        for i in opened_files:
-            self.file_select.insert(counter, i)
-            counter += 1
-        self.file_select.pack(fill=BOTH, expand=True)
-
-    def get_selected_item(self):
-        selected_indices = self.file_select.curselection()
-        if selected_indices:
-            selected_index = selected_indices[0]
-            selected_item = self.file_select.get(selected_index)
-            return selected_item
+        self.Exit_Button = Button(windowframe,text='Exit', command=self.destroy)
+        self.Exit_Button.pack(fill=X, side=BOTTOM)
+        self.Add_Button = Button(windowframe,text='Select File', command=self.open_file_dialog)
+        self.Add_Button.pack(fill=X)
+        self.file_title = Message(windowframe,text="No file selected", width=550)
+        self.file_title.pack(fill=BOTH)
 
     def window_popup(self):
         DoneWindow(self)
 
     def open_app(self):
-        file_to_open = self.get_selected_item()
+        file_to_open = self.file_path
         file_to_open = file_to_open.strip()
         base_name = os.path.splitext(os.path.basename(file_to_open))[0]
-
-        dst_file = select_dst_file(base_name)
-        if dst_file:
+        if file_to_open != "":
+            dst_file = select_dst_file(base_name)
             with open(file_to_open) as question_parser_input:
                 question_parser(question_parser_input, dst_file, self)
         else:
-            print("No destination file selected.")
+            self.file_title.config(text=f"Cannot Start.\nNo file selected.")
 
+    def open_file_dialog(self):
+        self.file_path = filedialog.askopenfilename(title="Select a File",
+                                                    filetypes=[("Text files", "*.rtf"), ("All files", "*.*")])
+        self.file_title.config(text=f"{self.file_path} is selected")
 
 
 def question_parser(question_parser_input, dst_file, self):
