@@ -40,13 +40,13 @@ class App(Tk):
         self.file_path = ""
         windowframe = Frame(self)
         windowframe.pack(fill=BOTH)
-        self.Start_Button = Button(windowframe,text='Start', command=self.open_app)
+        self.Start_Button = Button(windowframe, text='Start', command=self.open_app)
         self.Start_Button.pack(fill=X)
-        self.Exit_Button = Button(windowframe,text='Exit', command=self.destroy)
+        self.Exit_Button = Button(windowframe, text='Exit', command=self.destroy)
         self.Exit_Button.pack(fill=X, side=BOTTOM)
-        self.Add_Button = Button(windowframe,text='Select File', command=self.open_file_dialog)
+        self.Add_Button = Button(windowframe, text='Select File', command=self.open_file_dialog)
         self.Add_Button.pack(fill=X)
-        self.file_title = Message(windowframe,text="No file selected", width=550)
+        self.file_title = Message(windowframe, text="No file selected", width=550)
         self.file_title.pack(fill=BOTH)
 
     def window_popup(self):
@@ -76,6 +76,7 @@ def question_parser(question_parser_input, dst_file, self):
     answer_count = 0
     current_question = ""
     image_count = 0
+    init_counter = 0
     for line in question_parser_input:
         image = ""
         if re.search('.{500,}', line):
@@ -89,6 +90,18 @@ def question_parser(question_parser_input, dst_file, self):
         # print(line)
         base_line = line.replace("\n", " ", 1)
         base_line = base_line.replace(" ", "", 1)
+
+        if init_counter == 0:
+            current_question = "Q0"
+            question_database[current_question] = {
+                "Question": "Welcome to your Exam",
+                "Options": {},
+                "Answer": "",
+                "Explanation": "",
+                "Num of Answers": 0
+            }
+            init_counter += 1
+
         if re.search('^Q\d+', base_line):
             split_line = base_line.split(" ", 1)
             current_question = split_line[0]
@@ -108,6 +121,7 @@ def question_parser(question_parser_input, dst_file, self):
             line_count_2 = 0
             answer_count = 0
             print(current_question)
+
         elif line_count != 0 and not re.search('^Q\d+', base_line):
 
             if not re.search('^[A-Z][.]', base_line) and not re.search('^Answer:', base_line) and answer_count == 0:
