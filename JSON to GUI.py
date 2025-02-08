@@ -1,13 +1,49 @@
+import base64
+import re
+import struct
+from io import BytesIO
 from tkinter import *
 from tkinter.ttk import *
 import json
 from random import randrange
 from tkinter import filedialog
 import os  # For extracting the directory of the file
+from PIL import Image, ImageTk
 
 import RTF_to_JSON_Formatter
 
 global json_data
+
+installation_folder = "C:\\Users\\benhu\\PycharmProjects\\pythonProject\\Exam Taker\\"
+
+import json
+import base64
+import struct
+from PIL import Image, ImageTk
+from io import BytesIO
+
+
+def load_custom_file_format(input_file):
+    global json_data
+    try:
+        with open(input_file, "rb") as f:
+            json_size_data = f.read(4)
+            if len(json_size_data) < 4:
+                raise ValueError("Invalid file format: Missing JSON size header")
+
+            json_size = struct.unpack("I", json_size_data)[0]
+
+            # Read JSON data
+            json_bytes = f.read(json_size)
+            if len(json_bytes) < json_size:
+                raise ValueError("Invalid file format: JSON data truncated")
+
+            json_data = json.loads(json_bytes.decode('utf-8'))
+
+    except Exception as e:
+        print(f"Error loading file: {e}")
+
+
 
 
 class OpeningMenu(Tk):
@@ -18,9 +54,9 @@ class OpeningMenu(Tk):
         self.style.theme_use("vista")
 
         self.title("BEN Player")
-        self.iconbitmap("C:\\Users\\benhu\\PycharmProjects\\pythonProject\\Exam Taker\\ben_player.ico")
+        self.iconbitmap(f"{installation_folder}ben_player.ico")
 
-        with open("C:\\Users\\benhu\\PycharmProjects\\pythonProject\\Exam Taker\\opened_files.txt") as file1:
+        with open(f"{installation_folder}opened_files.txt") as file1:
             opened_files = file1.readlines()
             print(opened_files)
 
@@ -98,7 +134,7 @@ class OpeningMenu(Tk):
 
     def open_file_dialog(self):
         file_path = filedialog.askopenfilename(title="Select a File",
-                                               filetypes=[("Text files", "*.json"), ("All files", "*.*")])
+                                               filetypes=[("Text files", "*.json *.ben",), ("All files", "*.*")])
 
         if file_path:
             with open("opened_files.txt", "r") as infile:
@@ -137,16 +173,14 @@ class OpeningMenu(Tk):
     def open_app(self):
         file_to_open = self.get_selected_item()
         if file_to_open:
-            with open(file_to_open) as file:
-                global json_data
-                json_data = json.load(file)
-                App()
+            load_custom_file_format(file_to_open)
+            App()
 
 
 class WIPwindow(Toplevel):
     def __init__(self, master=None):
         super().__init__(master)
-        self.iconbitmap("C:\\Users\\benhu\\PycharmProjects\\pythonProject\\Exam Taker\\ben_player.ico")
+        self.iconbitmap(f"{installation_folder}ben_player.ico")
 
         Label(self, text="WIP").pack()
         Button(self, text='Ok', command=self.destroy).pack(side=RIGHT, fill=BOTH, padx=5, pady=5)
@@ -155,11 +189,18 @@ class WIPwindow(Toplevel):
 class PopUpConfirmQuit(Toplevel):
     def __init__(self, master=None):
         super().__init__(master)
-        self.iconbitmap("C:\\Users\\benhu\\PycharmProjects\\pythonProject\\Exam Taker\\ben_player.ico")
+        self.iconbitmap(f"{installation_folder}ben_player.ico")
 
         Label(self, text="Are you sure you wish to end this exam?").pack()
         Button(self, text='No', command=self.destroy).pack(side=RIGHT, fill=BOTH, padx=5, pady=5)
         Button(self, text='Yes', command=master.destroy).pack(side=RIGHT, fill=BOTH, padx=5, pady=5)
+
+
+def get_amount_of_points():
+    counter = 0
+    for i in json_data["questions"]:
+        counter += json_data["questions"][i]["Num of Answers"]
+    return counter
 
 
 class App(Toplevel):
@@ -168,7 +209,7 @@ class App(Toplevel):
         self.geometry('1030x635')
         self.state('zoomed')
         self.title("Exam")
-        self.iconbitmap("C:\\Users\\benhu\\PycharmProjects\\pythonProject\\Exam Taker\\ben_player.ico")
+        self.iconbitmap(f"{installation_folder}ben_player.ico")
 
         self.last_question = ""
         self.previous_question = ""
@@ -180,26 +221,35 @@ class App(Toplevel):
         self.checkbuttons = []
         self.answered_questions = ["", "", "", ""]
 
+        self.topframe = Frame(self)
+        self.topframe.grid(row=0, column=0, sticky=W, pady=30)
+        self.optionframe = Frame(self)
+        self.optionframe.grid(row=1, column=0, columnspan=10, sticky=W)
+        self.bottomframe = Frame(self)
+        self.bottomframe.grid(row=2, column=0, sticky=W)
         # Label to show the current question number
-        self.count_label = Label(self,
-                                 text=f"Item {self.current_question} of {len(json_data) - 1}  Q{self.current_index}")
-        self.count_label.place(x=15, y=40)
+        self.count_label = Label(self.topframe,
+                                 text=f"Item {self.current_index} of {len(json_data['questions']) - 1}  Q{self.current_question}")
+        self.count_label.grid(row=0, column=0, sticky=W)
 
         self.correct_counter_label = Label(self,
-                                           text=f"{self.correct_counter} out of {self.get_amount_of_points()}")
-        self.correct_counter_label.place(relx=1, y=40, anchor=E)
+                                           text=f"Current Score: {self.correct_counter}/{get_amount_of_points()}")
+        self.correct_counter_label.place(relx=1, y=20, anchor=E)
         # Display the question text from the JSON data for the current index
-        self.Question = Message(self, text=json_data[f"Q{self.current_question}"]["Question"], width=700)
-        self.Question.place(x=15, y=75)
+        self.Question = Message(self.topframe, text=json_data["questions"][f"Q{self.current_question}"]["Question"],
+                                width=700)
+        self.Question.grid(row=1, column=0, sticky=W)
+
+
 
         # Display a label asking the user to select the required number of answers
-        amount_of_answers = json_data[f"Q{self.current_question}"]["Num of Answers"]
-        self.answers = Label(self, text=f"Please select only {amount_of_answers} answer/s.")
-        self.answers.place(x=15, y=110)
+        amount_of_answers = json_data["questions"][f"Q{self.current_question}"]["Num of Answers"]
+        self.answers = Label(self.optionframe, text=f"Please select only {amount_of_answers} answer/s.")
+        self.answers.grid(row=0, column=0, sticky=W)
 
         # StringVar to hold the selected option for the question
         self.selected_option_radio = StringVar()
-        self.selected_option_check = StringVar()
+        self.selected_option_check = {}
         self.show_options(amount_of_answers)
 
         # Button to move to the previous question
@@ -214,12 +264,6 @@ class App(Toplevel):
         self.end_exam_button = Button(self, text="End Exam", command=lambda: PopUpConfirmQuit(self))
         self.end_exam_button.place(relx=1, rely=1, anchor='se', width=80)
 
-    def get_amount_of_points(self):
-        counter = 0
-        for i in json_data:
-            counter += json_data[i]["Num of Answers"]
-        return counter
-
     def show_options(self, amount_of_answers, is_previous_question=False):
         if is_previous_question:
             self.current_question = self.previous_question
@@ -227,29 +271,31 @@ class App(Toplevel):
         for cb in self.checkbuttons:
             cb.destroy()
 
-        row_counter = 0
+        row_counter = 1
         self.checkbuttons = []
-        option_letter = json_data[f"Q{self.current_question}"]["Options"]
+        option_letter = json_data["questions"][f"Q{self.current_question}"]["Options"]
         self.selected_option_radio = StringVar()
-        self.selected_option_check = StringVar()
-
+        self.selected_option_check = {}
+        # If there are more than 1 answer for a question then initialize the answers in a CheckButtons format
+        # for multiple choice
         if amount_of_answers > 1:
             for letter in option_letter:
-                option_question = json_data[f"Q{self.current_question}"]["Options"][letter]
+                option_question = json_data["questions"][f"Q{self.current_question}"]["Options"][letter]
                 option_list = letter + " " + option_question
-                self.selected_option_check = StringVar()
-                cb = Checkbutton(self, text=option_list, variable=self.selected_option_check)
-                cb.place(x=15, y=130 + row_counter)
+                self.selected_option_check[letter] = IntVar()
+                cb = Checkbutton(self.optionframe, text=option_list, variable=self.selected_option_check[letter])
+                cb.grid(row=row_counter, column=0, sticky=W)
                 self.checkbuttons.append(cb)
-                row_counter += 25
+                row_counter += 1
+        # If there is only 1 answer for a question then initialize the answers in a RadioButtons Format
         else:
             for letter in option_letter:
-                option_question = json_data[f"Q{self.current_question}"]["Options"][letter]
+                option_question = json_data["questions"][f"Q{self.current_question}"]["Options"][letter]
                 option_list = letter + " " + option_question  # Display the option with its letter
-                cb = Radiobutton(self, text=option_list, variable=self.selected_option_radio, value=letter)
-                cb.place(x=15, y=130 + row_counter)
+                cb = Radiobutton(self.optionframe, text=option_list, variable=self.selected_option_radio, value=letter)
+                cb.grid(row=row_counter, column=0, sticky=W)
                 self.checkbuttons.append(cb)
-                row_counter += 25
+                row_counter += 1
 
     def show_next_question(self):
         check_answer = self.check_answer()
@@ -261,44 +307,65 @@ class App(Toplevel):
         """This method is triggered when the "Next" button is clicked to show the next question."""
         if check_answer:
 
-            if self.current_index != len(json_data) - 1:
-                random_question = randrange(1, len(json_data))
-                while random_question in self.answered_questions:
-                    random_question = randrange(1, len(json_data))
-                    print("randomise!")
+            # Check if current question is within number of questions for the whole exam
+            if self.current_index != len(json_data["questions"]) - 1:
 
-                if random_question in self.answered_questions:
-                    random_question = randrange(1, len(json_data))
-                    print(random_question)
-
+                # If the currently displayed question is not the same as the last answered question
+                # then the current question equals the next question in the list of answered questions
+                # instead of randomising a number
                 if self.current_index != len(self.answered_questions) - 4:
-                    print(self.current_index, len(self.answered_questions))
-                    self.current_question = self.answered_questions[self.current_index + 3]
+                    print(self.current_index, len(self.answered_questions) - 4)
                     print(self.current_question)
-
-                elif self.current_question == self.last_question:
-                    print(self.answered_questions)
-                    self.current_question = random_question
+                    self.current_question = self.answered_questions[self.current_index + 4]
                     print(self.current_question)
-                    self.current_index -= 1
-                else:
                     self.last_question = self.current_question
-                    self.answered_questions.append(self.current_question)
-                    print(self.answered_questions)
-                    self.current_question = random_question
-                    print(self.current_question)
+
+                else:
+                    # Generate a random number in the range of number of questions in the exam and assign
+                    # it to the random_question Variable
+                    random_question = randrange(1, len(json_data["questions"]))
+
+                    # If the generate number has already been used in the exam then generate a new one
+                    # until one is generated that has not been used before
+                    while random_question in self.answered_questions:
+                        random_question = randrange(1, len(json_data["questions"]))
+                        print("randomise!")
+
+                    """
+                    if random_question in self.answered_questions:
+                        random_question = randrange(1, len(json_data))
+                        print(random_question)
+                    """
+
+                    # if the current question equals to the last question asked generate a new random question
+                    # and take the current_index down by 1
+                    if self.current_question == self.last_question:
+                        print("previous")
+                        print(self.answered_questions)
+                        self.current_question = random_question
+                        print(self.current_question)
+                        self.current_index -= 1
+                    # If this is a new question randomise the question and append the current question to the
+                    # answered questions list
+                    else:
+                        self.last_question = self.current_question
+                        self.answered_questions.append(self.current_question)
+                        print(self.answered_questions)
+                        self.current_question = random_question
+                        print(self.current_question)
 
                 self.current_index += 1
+                self.find_images()
 
-                if f"Q{self.current_index}" in json_data:
+                if f"Q{self.current_index}" in json_data['questions']:
                     self.count_label.config(
-                        text=f"Item {self.current_question} of {len(json_data) - 1}  Q{self.current_index}")
-                    self.Question.config(text=json_data[f"Q{self.current_question}"]["Question"])
-                    amount_of_answers = json_data[f"Q{self.current_question}"]["Num of Answers"]
+                        text=f"Item {self.current_index} of {len(json_data['questions']) - 1}  Q{self.current_question}")
+                    self.Question.config(text=json_data["questions"][f"Q{self.current_question}"]["Question"])
+                    amount_of_answers = json_data["questions"][f"Q{self.current_question}"]["Num of Answers"]
                     self.answers.config(text=f"Please only select {amount_of_answers} answer.")
                     self.show_options(amount_of_answers)  # Show options for the next question
                     self.correct_counter_label.config(
-                        text=f"{self.correct_counter} out of {self.get_amount_of_points()}")
+                        text=f"Current Score: {self.correct_counter}/{get_amount_of_points()}")
 
             else:
                 print("DONE")
@@ -313,47 +380,109 @@ class App(Toplevel):
 
     def show_previous_question(self):
         """This method is triggered when the "Next" button is clicked to show the next question."""
+        # Remove window that shows the correct answer so that the previous question's answer does
+        # not stay on the window when hitting back
+        for answer in self.correct_answer:
+            answer.destroy()
+
+        # Check to make sure the current position is greater than 1, if so then decrement the current position by 1
         if self.current_index >= 2:
             self.current_index -= 1
 
         if f"Q{self.current_question}" in json_data and self.current_index > 0:
-            self.previous_question = self.answered_questions[self.current_index + 3]
+            self.previous_question = self.answered_questions[self.current_index + 4]
             self.count_label.config(
-                text=f"Item {self.previous_question} of {len(json_data) - 1}  Q{self.current_index}")
-            self.Question.config(text=json_data[f"Q{self.previous_question}"]["Question"])
-            amount_of_answers = json_data[f"Q{self.previous_question}"]["Num of Answers"]
+                text=f"Item {self.current_index} of {len(json_data['questions']) - 1}  Q{self.previous_question}")
+            self.Question.config(text=json_data["questions"][f"Q{self.previous_question}"]["Question"])
+            amount_of_answers = json_data["questions"][f"Q{self.previous_question}"]["Num of Answers"]
             self.answers.config(text=f"Please only select {amount_of_answers} answer.")
             self.show_options(amount_of_answers, True)
 
     def check_answer(self):
-        current_answer = json_data[f"Q{self.current_question}"]["Answer"]
-        current_option = self.selected_option_radio.get().strip(".")
-
-        if self.selected_option_radio.get():
-            current_option = self.selected_option_radio.get().strip(".")
-        elif self.selected_option_check.get():
-            current_option = self.selected_option_check.get().strip(".")
-
-        print(current_option)
-        if current_option == current_answer and current_option != "":
-            print("right", current_answer, current_option)
-            self.correct_counter += 1
+        if self.current_index == 0:
             return True
-        elif current_option != current_answer and self.current_index != 0:
-            print("wrong", current_answer, current_option)
-            return False
         else:
-            return True
+
+            current_answer = json_data["questions"][f"Q{self.current_question}"]["Answer"].split(",")
+            current_answer_rejoined = ""
+            current_option = self.selected_option_radio.get().strip(".")
+
+            if len(current_answer) > 1:
+                current_answer_joiner_counter = 0
+                for _ in current_answer:
+                    current_answer_rejoined += current_answer[current_answer_joiner_counter]
+                    current_answer_joiner_counter += 1
+                current_answer = current_answer_rejoined
+            else:
+                current_answer = current_answer[0]
+
+            if current_option != "":
+                current_option = self.selected_option_radio.get().strip(".")
+            else:
+                options = []
+                options_string = ""
+                count = 0
+                for letter in self.selected_option_check:
+                    if self.selected_option_check[letter].get() != 0:
+                        options.append(letter.strip("."))
+                for _ in options:
+                    options_string += options[count]
+                    count += 1
+                current_option = options_string
+
+            print(current_option)
+
+            if current_option == current_answer and current_option != "":
+                print("right", current_answer, current_option)
+                self.correct_counter += 1
+                return True
+            else:
+                print("wrong", current_answer, current_option)
+                return False
 
     def show_correct_answer(self):
         if not self.check_answer():
-            correct_answer = Message(self,
-                                     text=f'Answer: {json_data[f"Q{self.current_question}"]["Answer"]}'
-                                          f'\n\nExplanation:\n{json_data[f"Q{self.current_question}"]["Explanation"]}'
+            correct_answer = Message(self.bottomframe,
+                                     text=f'Answer: {json_data["questions"][f"Q{self.current_question}"]["Answer"]}'
+                                          f'\n\nExplanation:\n{json_data["questions"][f"Q{self.current_question}"]["Explanation"]}'
                                      , width=950, bg="yellow")
-            correct_answer.place(x=15, y=300)
+            correct_answer.grid(row=0, column=0, sticky=W, columnspan=3)
             self.correct_answer.append(correct_answer)
             self.answer_viewed = True
+
+    def find_images(self):
+        # Display the image if it exists
+        for i in json_data["questions"][f"Q{self.current_question}"]:
+            #print(json_data["questions"][f"Q{self.current_question}"][i])
+            current_i = json_data["questions"][f"Q{self.current_question}"][i]
+            print(current_i)
+            if "image_" in str(current_i):
+                print("IMAGE!")
+                found_image = re.search('image_\d+', str(current_i))
+                base64_string = json_data["images"][f"{found_image}"]
+                print(base64_string)
+                #load_base64_image(base64_string)
+            # print("IMAGE HERE")
+            # image_label = Label(self.topframe, image=json_data["questions"][f"Q{self.current_question}"]["image_obj"])
+            # image_label.grid(row=2, column=0, sticky=W)
+
+
+def load_base64_image(base64_string, width=None, height=None):
+    try:
+        # Decode the base64 string
+        image_data = base64.b64decode(base64_string)
+        image = Image.open(BytesIO(image_data))
+
+        # Resize image if width/height is provided
+        if width and height:
+            image = image.resize((width, height), Image.ANTIALIAS)
+
+        return ImageTk.PhotoImage(image)
+    except Exception as e:
+        print(f"Error loading image from base64: {e}")
+        return None
+
+
 
 
 if __name__ == '__main__':
