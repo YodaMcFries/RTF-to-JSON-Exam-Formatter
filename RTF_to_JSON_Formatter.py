@@ -128,6 +128,8 @@ class App(Tk):
         file_to_open = file_to_open.strip()
         base_name = os.path.splitext(os.path.basename(file_to_open))[0]
         if file_to_open != "":
+            dst_file = select_dst_file(base_name)
+
             # Convert RTF to DOCX first
             temp_docx_path = f"{base_name}.docx"
             convert_rtf_to_docx(file_to_open, temp_docx_path)
@@ -136,7 +138,6 @@ class App(Tk):
             extracted_text = docx2txt.process(absolute_docx_path)
 
             # Save the content to JSON file
-            dst_file = select_dst_file(base_name)
             with open(file_to_open, "r") as question_parser_input:
                 question_parser(question_parser_input, dst_file, self, extracted_text)
         else:
@@ -154,18 +155,18 @@ def question_parser(question_parser_input, dst_file, self, extracted_text):
     line_count_2 = 0
     answer_count = 0
     current_question = ""
-    image_count = 0
+    image_count = 1
     init_counter = 0
-
+    images = {}
     # Extract images before processing the extracted text (you can modify this part as needed)
-    images = extract_images(absolute_docx_path)  # Get images from the extracted content
+    # images = extract_images(absolute_docx_path)  # Get images from the extracted content
     print("Images extracted.")
     question_parser_input.seek(0)
-    print(extracted_text)
     for line in question_parser_input:
         image = ""
-        if re.search('pict', line):
-            image = f" image_{image_count} "
+        if re.search('pichgoal\d{4,}', line):
+            image = f"image_{image_count}"
+            images[image] = extract_images(absolute_docx_path, image_count)
             image_count += 1
         line = rtf_to_text(line)
         # line = line.replace("\n", " ")
@@ -210,10 +211,10 @@ def question_parser(question_parser_input, dst_file, self, extracted_text):
         elif line_count != 0 and not re.search('^Q\d+', base_line):
 
             if not re.search('^[A-Z][.]', base_line) and not re.search('^Answer:', base_line) and answer_count == 0:
-                question_info += line
-                question_database[current_question]["Question"] = question_info.strip() + image
+                question_info += line + image
+                debug = question_database[current_question]["Question"] = question_info.strip()
 
-            if re.search('^[A-Z][.]', base_line):
+            elif re.search('^[A-Z][.]', base_line):
                 line = line.replace("\n", " ", 1)
                 line = line.replace(" ", "", 1)
                 split_line = line.split(" ", 1)
@@ -227,7 +228,7 @@ def question_parser(question_parser_input, dst_file, self, extracted_text):
                 line = line.replace(" ", "", 1)
                 split_line = line.split(" ", 1)
                 question_database[current_question]["Num of Answers"] = len(split_line[1].strip())
-                question_database[current_question]["Answer"] = split_line[1].strip()
+                question_database[current_question]["Answer"] = split_line[1].strip() + image
                 answer_count = 1
 
             elif line_count_2 == 0 and re.search('^Explanation:', base_line):
@@ -249,10 +250,8 @@ def question_parser(question_parser_input, dst_file, self, extracted_text):
         test_output.write(json_bytes)
 
 
-def extract_images(docx_file_path):
+def extract_images(docx_file_path, image_count):
     """Extracts images from a DOCX file and returns them as base64 strings."""
-    images = {}
-    image_count = 0
 
     # Open the DOCX file as a ZIP archive
     with zipfile.ZipFile(docx_file_path, 'r') as docx_zip:
@@ -262,19 +261,15 @@ def extract_images(docx_file_path):
         # Look for the media folder which contains the images
         media_folder = 'word/media/'
         image_files = [file for file in file_list if file.startswith(media_folder)]
+        # Extract the image data
+        image_data = docx_zip.read(f"word/media/image{image_count}.png")
 
-        for image_file in image_files:
-            # Extract the image data
-            image_data = docx_zip.read(image_file)
+        # Convert the image data to base64
+        encoded_image = base64.b64encode(image_data).decode('utf-8')
 
-            # Convert the image data to base64
-            encoded_image = base64.b64encode(image_data).decode('utf-8')
+        # Store the image with a unique ID
 
-            # Store the image with a unique ID
-            images[f"image_{image_count}"] = encoded_image
-            image_count += 1
-
-    return images
+    return encoded_image
 
 
 def __main__():
