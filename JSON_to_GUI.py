@@ -44,8 +44,6 @@ def load_custom_file_format(input_file):
         print(f"Error loading file: {e}")
 
 
-
-
 class OpeningMenu(Tk):
     def __init__(self):
         super().__init__()
@@ -240,7 +238,8 @@ class App(Toplevel):
                                 width=700)
         self.Question.grid(row=1, column=0, sticky=W)
 
-
+        self.image_label = Label(self.topframe)  # Label to hold the image
+        self.image_label.grid(row=2, column=0, sticky=W)  # Adjust placement as needed
 
         # Display a label asking the user to select the required number of answers
         amount_of_answers = json_data["questions"][f"Q{self.current_question}"]["Num of Answers"]
@@ -253,7 +252,7 @@ class App(Toplevel):
         self.show_options(amount_of_answers)
 
         # Button to move to the previous question
-        self.previous_button = Button(self, text="Prevous", command=self.show_previous_question)
+        self.previous_button = Button(self, text="Previous", command=self.show_previous_question)
         self.previous_button.place(x=0, rely=1, anchor='sw', width=80)
 
         # Button to move to the next question
@@ -298,7 +297,10 @@ class App(Toplevel):
                 row_counter += 1
 
     def show_next_question(self):
+
         check_answer = self.check_answer()
+        self.image_label.config(image=None)
+        self.image_label.image = None  # Keep a reference to the image
         if self.answer_viewed:
             self.answer_viewed = False
             check_answer = True
@@ -358,6 +360,7 @@ class App(Toplevel):
                 self.find_images()
 
                 if f"Q{self.current_index}" in json_data['questions']:
+
                     self.count_label.config(
                         text=f"Item {self.current_index} of {len(json_data['questions']) - 1}  Q{self.current_question}")
                     self.Question.config(text=json_data["questions"][f"Q{self.current_question}"]["Question"])
@@ -453,18 +456,18 @@ class App(Toplevel):
     def find_images(self):
         # Display the image if it exists
         for i in json_data["questions"][f"Q{self.current_question}"]:
-            #print(json_data["questions"][f"Q{self.current_question}"][i])
             current_i = json_data["questions"][f"Q{self.current_question}"][i]
-            print(current_i)
             if "image_" in str(current_i):
-                print("IMAGE!")
                 found_image = re.search('image_\d+', str(current_i))
-                base64_string = json_data["images"][f"{found_image}"]
-                print(base64_string)
-                #load_base64_image(base64_string)
-            # print("IMAGE HERE")
-            # image_label = Label(self.topframe, image=json_data["questions"][f"Q{self.current_question}"]["image_obj"])
-            # image_label.grid(row=2, column=0, sticky=W)
+                if found_image:
+                    image_key = found_image.group()  # This will return 'image_X'
+                    print(image_key)
+                    base64_string = json_data["images"].get(image_key, "")
+                    if base64_string:
+                        image = load_base64_image(base64_string)  # Adjust size if necessary
+                        if image:
+                            self.image_label.config(image=image)  # Update the label with the new image
+                            self.image_label.image = image  # Keep a reference to the image
 
 
 def load_base64_image(base64_string, width=None, height=None):
@@ -475,13 +478,12 @@ def load_base64_image(base64_string, width=None, height=None):
 
         # Resize image if width/height is provided
         if width and height:
-            image = image.resize((width, height), Image.ANTIALIAS)
+            image = image.resize((width, height))
 
         return ImageTk.PhotoImage(image)
     except Exception as e:
         print(f"Error loading image from base64: {e}")
         return None
-
 
 
 
