@@ -7,6 +7,7 @@ from tkinter import filedialog
 from tkinter.ttk import *
 import json
 import os
+import psutil
 
 from docx2python import docx2python
 from striprtf.striprtf import rtf_to_text
@@ -57,6 +58,7 @@ def convert_rtf_to_docx(rtf_file_path, docx_file_path):
     global absolute_docx_path
     absolute_docx_path = os.path.abspath(docx_file_path)  # Get absolute path
     print(f"Absolute path for docx file: {absolute_docx_path}")  # Debugging line
+
     """
     try:
         # Debugging file access before processing
@@ -138,11 +140,10 @@ class App(Tk):
             # Use docx2txt to extract the content from DOCX
             extracted_text = extract_text_docx2python(absolute_docx_path)
             extracted_images = extract_images_docx2python(absolute_docx_path)  # Get images from the extracted content
-            #os.remove(temp_docx_path)
 
             # Save the content to JSON file
-            with open(file_to_open, "r") as question_parser_input:
-                question_parser(question_parser_input, dst_file, self, extracted_text, extracted_images)
+            #with open(file_to_open, "r") as question_parser_input:
+            question_parser(dst_file, self, extracted_text, extracted_images)
         else:
             self.file_title.config(text=f"Cannot Start.\nNo file selected.")
 
@@ -152,7 +153,7 @@ class App(Tk):
         self.file_title.config(text=f"{self.file_path} is selected")
 
 
-def question_parser(question_parser_input, dst_file, self, extracted_text, images):
+def question_parser(dst_file, self, extracted_text, images):
     question_database = {}
     line_count = 0
     line_count_2 = 0
@@ -244,7 +245,7 @@ def question_parser(question_parser_input, dst_file, self, extracted_text, image
         try:
             json_bytes = json.dumps({"questions": question_database, "images": images}).encode('utf-8')
             json_size = len(json_bytes)
-
+            os.remove(absolute_docx_path)
             # Store JSON size (4-byte integer) + JSON data + Image data
             test_output.write(struct.pack("I", json_size))
             test_output.write(json_bytes)
@@ -254,14 +255,14 @@ def question_parser(question_parser_input, dst_file, self, extracted_text, image
 
 
 def extract_text_docx2python(docx_file_path):
-    output = docx2python(docx_file_path)
-    text = output.text
+    with docx2python(docx_file_path) as output:
+        text = output.text
     return text
 
 
 def extract_images_docx2python(docx_file_path):
-    output = docx2python(docx_file_path)
-    images_dict = output.images  # This is the dictionary
+    with docx2python(docx_file_path) as output:
+        images_dict = output.images  # This is the dictionary
     print(type(images_dict))
     images = {}
 
@@ -302,3 +303,4 @@ def __main__():
 
 if __name__ == '__main__':
     __main__()
+
