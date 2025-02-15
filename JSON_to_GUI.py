@@ -16,12 +16,6 @@ global json_data
 
 installation_folder = "C:\\Users\\benhu\\PycharmProjects\\pythonProject\\Exam Taker\\"
 
-import json
-import base64
-import struct
-from PIL import Image, ImageTk
-from io import BytesIO
-
 
 def load_custom_file_format(input_file):
     global json_data
@@ -299,9 +293,9 @@ class App(Toplevel):
     def show_next_question(self):
 
         check_answer = self.check_answer()
-        self.image_label.config(image=None)
-        self.image_label.image = None  # Keep a reference to the image
         if self.answer_viewed:
+            self.image_label.config(image=None)
+            self.image_label.image = None  # Keep a reference to the image
             self.answer_viewed = False
             check_answer = True
             for answer in self.correct_answer:
@@ -356,6 +350,8 @@ class App(Toplevel):
                         self.current_question = random_question
                         print(self.current_question)
 
+                self.image_label.config(image=None)
+                self.image_label.image = None  # Keep a reference to the image
                 self.current_index += 1
                 self.find_images()
 
@@ -454,20 +450,22 @@ class App(Toplevel):
             self.answer_viewed = True
 
     def find_images(self):
-        # Display the image if it exists
+        # Display the image if it
         for i in json_data["questions"][f"Q{self.current_question}"]:
-            current_i = json_data["questions"][f"Q{self.current_question}"][i]
-            if "image_" in str(current_i):
-                found_image = re.search('image_\d+', str(current_i))
-                if found_image:
-                    image_key = found_image.group()  # This will return 'image_X'
-                    print(image_key)
-                    base64_string = json_data["images"].get(image_key, "")
-                    if base64_string:
-                        image = load_base64_image(base64_string)  # Adjust size if necessary
-                        if image:
-                            self.image_label.config(image=image)  # Update the label with the new image
-                            self.image_label.image = image  # Keep a reference to the image
+            if i != "Explanation":
+                current_i = json_data["questions"][f"Q{self.current_question}"][i]
+                if "media/image" in str(current_i):
+                    print(json_data["questions"][f"Q{self.current_question}"][i])
+                    found_image = re.search('image\d+.png', str(current_i))
+                    if found_image:
+                        image_key = found_image.group() # This will return 'image_X'
+                        print(image_key)
+                        base64_string = json_data["images"].get(image_key, "")
+                        if base64_string:
+                            image = load_base64_image(base64_string)  # Adjust size if necessary
+                            if image:
+                                self.image_label.config(image=image)  # Update the label with the new image
+                                self.image_label.image = image  # Keep a reference to the image
 
 
 def load_base64_image(base64_string, width=None, height=None):

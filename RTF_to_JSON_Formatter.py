@@ -7,6 +7,8 @@ from tkinter import filedialog
 from tkinter.ttk import *
 import json
 import os
+
+from docx2python import docx2python
 from striprtf.striprtf import rtf_to_text
 import re
 from PIL import Image
@@ -15,8 +17,6 @@ import win32com.client
 import docx2txt
 
 installation_folder = "C:\\Users\\benhu\\PycharmProjects\\pythonProject\\Exam Taker\\"
-
-import os
 
 global absolute_docx_path
 
@@ -51,13 +51,13 @@ def convert_rtf_to_docx(rtf_file_path, docx_file_path):
         return
 
     # Ensure the file is fully closed before processing
-    time.sleep(2)  # Adding more time to ensure the file is fully released by Word
+    # time.sleep(2)  # Adding more time to ensure the file is fully released by Word
 
     # Ensure the full absolute path is used for docx2txt
     global absolute_docx_path
     absolute_docx_path = os.path.abspath(docx_file_path)  # Get absolute path
     print(f"Absolute path for docx file: {absolute_docx_path}")  # Debugging line
-
+    """
     try:
         # Debugging file access before processing
         if os.path.exists(absolute_docx_path):
@@ -76,6 +76,7 @@ def convert_rtf_to_docx(rtf_file_path, docx_file_path):
         print("Failed to extract text after multiple attempts.")
     except Exception as e:
         print(f"Error processing docx file: {e}")
+    """
 
 
 def select_dst_file(default_name):
@@ -135,11 +136,13 @@ class App(Tk):
             convert_rtf_to_docx(file_to_open, temp_docx_path)
 
             # Use docx2txt to extract the content from DOCX
-            extracted_text = docx2txt.process(absolute_docx_path)
+            extracted_text = extract_text_docx2python(absolute_docx_path)
+            extracted_images = extract_images_docx2python(absolute_docx_path)  # Get images from the extracted content
+            #os.remove(temp_docx_path)
 
             # Save the content to JSON file
             with open(file_to_open, "r") as question_parser_input:
-                question_parser(question_parser_input, dst_file, self, extracted_text)
+                question_parser(question_parser_input, dst_file, self, extracted_text, extracted_images)
         else:
             self.file_title.config(text=f"Cannot Start.\nNo file selected.")
 
@@ -149,7 +152,7 @@ class App(Tk):
         self.file_title.config(text=f"{self.file_path} is selected")
 
 
-def question_parser(question_parser_input, dst_file, self, extracted_text):
+def question_parser(question_parser_input, dst_file, self, extracted_text, images):
     question_database = {}
     line_count = 0
     line_count_2 = 0
@@ -157,26 +160,22 @@ def question_parser(question_parser_input, dst_file, self, extracted_text):
     current_question = ""
     image_count = 1
     init_counter = 0
-    images = {}
     # Extract images before processing the extracted text (you can modify this part as needed)
-    # images = extract_images(absolute_docx_path)  # Get images from the extracted content
-    print("Images extracted.")
-    question_parser_input.seek(0)
-    for line in question_parser_input:
+    for line in extracted_text.splitlines():
         image = ""
-        if re.search('pichgoal\d{4,}', line):
-            image = f"image_{image_count}"
-            images[image] = extract_images(absolute_docx_path, image_count)
-            image_count += 1
-        line = rtf_to_text(line)
+        # if re.search('pichgoal\d{4,}', line):
+        # image = f"image_{image_count}"
+        # images[image] = extract_images(absolute_docx_path, image_count)
+        # image_count += 1
+        #line = rtf_to_text(line)
         # line = line.replace("\n", " ")
-        line = line.replace("\r", " ")
+        #line = line.replace("\r", " ")
         # line = line.replace(" ", "", 1)
-        line = line
+        base_line = line
         # print(line)
-        base_line = line.replace("\n", " ", 1)
-        base_line = base_line.replace(" ", "", 1)
-
+        #base_line = line.replace("\n", " ", 1)
+        #base_line = base_line.replace(" ", "", 1)
+        print(base_line)
         if init_counter == 0:
             current_question = "Q0"
             question_database[current_question] = {
@@ -191,10 +190,11 @@ def question_parser(question_parser_input, dst_file, self, extracted_text):
         if re.search('^Q\d+', base_line):
             split_line = base_line.split(" ", 1)
             current_question = split_line[0]
-            if len(split_line) > 1:
-                question_info = split_line[1]
-            else:
-                question_info = "ERROR"
+            question_info = ""
+            #if len(split_line) > 1:
+            #    question_info = split_line[1]
+            #else:
+            #    question_info = "ERROR"
             explanation_info = ""
             question_database[current_question] = {
                 "Question": "",
@@ -216,7 +216,7 @@ def question_parser(question_parser_input, dst_file, self, extracted_text):
 
             elif re.search('^[A-Z][.]', base_line):
                 line = line.replace("\n", " ", 1)
-                line = line.replace(" ", "", 1)
+                #line = line.replace(" ", "", 1)
                 split_line = line.split(" ", 1)
                 if len(split_line) > 1:
                     question_database[current_question]["Options"][split_line[0]] = split_line[1].strip() + image
@@ -225,7 +225,7 @@ def question_parser(question_parser_input, dst_file, self, extracted_text):
 
             elif re.search('^Answer:', base_line):
                 line = line.replace("\n", " ", 1)
-                line = line.replace(" ", "", 1)
+                #line = line.replace(" ", "", 1)
                 split_line = line.split(" ", 1)
                 question_database[current_question]["Num of Answers"] = len(split_line[1].strip())
                 question_database[current_question]["Answer"] = split_line[1].strip() + image
@@ -241,13 +241,36 @@ def question_parser(question_parser_input, dst_file, self, extracted_text):
                 question_database[current_question]["Explanation"] = explanation_info + image
 
     with open(dst_file, "wb") as test_output:
-        App.window_popup(self)
-        json_bytes = json.dumps({"questions": question_database, "images": images}).encode('utf-8')
-        json_size = len(json_bytes)
+        try:
+            json_bytes = json.dumps({"questions": question_database, "images": images}).encode('utf-8')
+            json_size = len(json_bytes)
 
-        # Store JSON size (4-byte integer) + JSON data + Image data
-        test_output.write(struct.pack("I", json_size))
-        test_output.write(json_bytes)
+            # Store JSON size (4-byte integer) + JSON data + Image data
+            test_output.write(struct.pack("I", json_size))
+            test_output.write(json_bytes)
+            App.window_popup(self)
+        except Exception as e:
+            print(e)
+
+
+def extract_text_docx2python(docx_file_path):
+    output = docx2python(docx_file_path)
+    text = output.text
+    return text
+
+
+def extract_images_docx2python(docx_file_path):
+    output = docx2python(docx_file_path)
+    images_dict = output.images  # This is the dictionary
+    print(type(images_dict))
+    images = {}
+
+    for key, img_data in images_dict.items():  # Iterate over dictionary keys
+        if isinstance(img_data, bytes):  # Check if the value is binary image data
+            images[key] = base64.b64encode(img_data).decode('utf-8')  # Convert to Base64
+
+    print("Images extracted.")
+    return images
 
 
 def extract_images(docx_file_path, image_count):
