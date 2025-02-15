@@ -356,7 +356,6 @@ class App(Toplevel):
                 self.find_images()
 
                 if f"Q{self.current_index}" in json_data['questions']:
-
                     self.count_label.config(
                         text=f"Item {self.current_index} of {len(json_data['questions']) - 1}  Q{self.current_question}")
                     self.Question.config(text=json_data["questions"][f"Q{self.current_question}"]["Question"])
@@ -378,7 +377,7 @@ class App(Toplevel):
             self.show_correct_answer()
 
     def show_previous_question(self):
-        """This method is triggered when the "Next" button is clicked to show the next question."""
+        """This method is triggered when the "Previous" button is clicked to show the next question."""
         # Remove window that shows the correct answer so that the previous question's answer does
         # not stay on the window when hitting back
         for answer in self.correct_answer:
@@ -388,7 +387,7 @@ class App(Toplevel):
         if self.current_index >= 2:
             self.current_index -= 1
 
-        if f"Q{self.current_question}" in json_data and self.current_index > 0:
+        if f"Q{self.current_question}" in json_data["questions"] and self.current_index > 0:
             self.previous_question = self.answered_questions[self.current_index + 4]
             self.count_label.config(
                 text=f"Item {self.current_index} of {len(json_data['questions']) - 1}  Q{self.previous_question}")
@@ -396,6 +395,7 @@ class App(Toplevel):
             amount_of_answers = json_data["questions"][f"Q{self.previous_question}"]["Num of Answers"]
             self.answers.config(text=f"Please only select {amount_of_answers} answer.")
             self.show_options(amount_of_answers, True)
+            self.find_images()
 
     def check_answer(self):
         if self.current_index == 0:
@@ -455,10 +455,9 @@ class App(Toplevel):
             if i != "Explanation":
                 current_i = json_data["questions"][f"Q{self.current_question}"][i]
                 if "media/image" in str(current_i):
-                    print(json_data["questions"][f"Q{self.current_question}"][i])
                     found_image = re.search('image\d+.png', str(current_i))
                     if found_image:
-                        image_key = found_image.group() # This will return 'image_X'
+                        image_key = found_image.group()  # This will return 'image_X'
                         print(image_key)
                         base64_string = json_data["images"].get(image_key, "")
                         if base64_string:
@@ -482,7 +481,6 @@ def load_base64_image(base64_string, width=None, height=None):
     except Exception as e:
         print(f"Error loading image from base64: {e}")
         return None
-
 
 
 if __name__ == '__main__':
