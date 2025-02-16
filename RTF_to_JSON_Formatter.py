@@ -94,7 +94,7 @@ def select_dst_file(default_name):
 class DoneWindow(Toplevel):
     def __init__(self, master=None):
         super().__init__(master)
-        self.iconbitmap(f"{installation_folder}ben_player.ico")
+        self.iconbitmap(f"ben_player.ico")
 
         Label(self, text="Formatting is Done!\nDo you want to close the app?").pack()
         Button(self, text='No', command=self.destroy).pack(side=RIGHT, fill=BOTH, padx=5, pady=5)
@@ -109,7 +109,7 @@ class App(Tk):
         self.style.theme_use("vista")
         self.geometry("600x100")
         self.title("BEN Convertor")
-        self.iconbitmap(f"{installation_folder}ben_player.ico")
+        self.iconbitmap(f"ben_player.ico")
 
         self.file_path = ""
         windowframe = Frame(self)
@@ -148,9 +148,13 @@ class App(Tk):
             self.file_title.config(text=f"Cannot Start.\nNo file selected.")
 
     def open_file_dialog(self):
+
         self.file_path = filedialog.askopenfilename(title="Select a File",
                                                     filetypes=[("RTF files", "*.rtf"), ("All files", "*.*")])
-        self.file_title.config(text=f"{self.file_path} is selected")
+        if self.file_path != "":
+            self.file_title.config(text=f"{self.file_path} is selected")
+        self.lift()
+        self.focus_set()
 
 
 def question_parser(dst_file, self, extracted_text, images):
@@ -176,7 +180,6 @@ def question_parser(dst_file, self, extracted_text, images):
         # print(line)
         #base_line = line.replace("\n", " ", 1)
         #base_line = base_line.replace(" ", "", 1)
-        print(base_line)
         if init_counter == 0:
             current_question = "Q0"
             question_database[current_question] = {
@@ -212,11 +215,12 @@ def question_parser(dst_file, self, extracted_text, images):
         elif line_count != 0 and not re.search('^Q\d+', base_line):
 
             if not re.search('^[A-Z][.]', base_line) and not re.search('^Answer:', base_line) and answer_count == 0:
-                question_info += line + image
+                if line != "":
+                    question_info += line + "\n"
                 debug = question_database[current_question]["Question"] = question_info.strip()
 
             elif re.search('^[A-Z][.]', base_line):
-                line = line.replace("\n", " ", 1)
+                #line = line.replace("\n", " ", 1)
                 #line = line.replace(" ", "", 1)
                 split_line = line.split(" ", 1)
                 if len(split_line) > 1:
@@ -225,7 +229,7 @@ def question_parser(dst_file, self, extracted_text, images):
                     question_database[current_question]["Options"][split_line[0]] = "ERROR"
 
             elif re.search('^Answer:', base_line):
-                line = line.replace("\n", " ", 1)
+                #line = line.replace("\n", " ", 1)
                 #line = line.replace(" ", "", 1)
                 split_line = line.split(" ", 1)
                 question_database[current_question]["Num of Answers"] = len(split_line[1].strip())
@@ -236,8 +240,8 @@ def question_parser(dst_file, self, extracted_text, images):
                 line_count_2 += 1
 
             elif line_count_2 != 0:
-                line = line.replace("\n", " ", 1)
-                line = line.replace(" ", "", 1)
+                #line = line.replace("\n", " ", 1)
+                #line = line.replace(" ", "", 1)
                 explanation_info += line
                 question_database[current_question]["Explanation"] = explanation_info + image
 
@@ -263,7 +267,6 @@ def extract_text_docx2python(docx_file_path):
 def extract_images_docx2python(docx_file_path):
     with docx2python(docx_file_path) as output:
         images_dict = output.images  # This is the dictionary
-    print(type(images_dict))
     images = {}
 
     for key, img_data in images_dict.items():  # Iterate over dictionary keys

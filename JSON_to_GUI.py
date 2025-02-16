@@ -46,9 +46,9 @@ class OpeningMenu(Tk):
         self.style.theme_use("vista")
 
         self.title("BEN Player")
-        self.iconbitmap(f"{installation_folder}ben_player.ico")
+        self.iconbitmap(f"ben_player.ico")
 
-        with open(f"{installation_folder}opened_files.txt") as file1:
+        with open(f"opened_files.txt") as file1:
             opened_files = file1.readlines()
             print(opened_files)
 
@@ -73,7 +73,7 @@ class OpeningMenu(Tk):
         self.Properties_Button.pack(fill=X)
         self.History_Button = Button(rightframe, text='History', command=lambda: WIPwindow(self))
         self.History_Button.pack(fill=X)
-        self.Convert_Button = Button(rightframe, text='Convert', command=lambda: RTF_to_JSON_Formatter.__main__())
+        self.Convert_Button = Button(rightframe, text='Convert', command=self.open_convertor)
         self.Convert_Button.pack(fill=X)
         self.Exit_Button = Button(rightframe, text='Exit', command=self.quit)
         self.Exit_Button.pack(fill=X)
@@ -91,7 +91,10 @@ class OpeningMenu(Tk):
             directory = os.path.dirname(file_path)
             self.treeview.insert("", "end", values=(file_name, directory))
 
-    import os
+    def open_convertor(self):
+
+        RTF_to_JSON_Formatter.__main__()
+
 
     def remove_file(self):
         selected_item = self.treeview.selection()
@@ -172,7 +175,7 @@ class OpeningMenu(Tk):
 class WIPwindow(Toplevel):
     def __init__(self, master=None):
         super().__init__(master)
-        self.iconbitmap(f"{installation_folder}ben_player.ico")
+        self.iconbitmap(f"ben_player.ico")
 
         Label(self, text="WIP").pack()
         Button(self, text='Ok', command=self.destroy).pack(side=RIGHT, fill=BOTH, padx=5, pady=5)
@@ -181,7 +184,7 @@ class WIPwindow(Toplevel):
 class PopUpConfirmQuit(Toplevel):
     def __init__(self, master=None):
         super().__init__(master)
-        self.iconbitmap(f"{installation_folder}ben_player.ico")
+        self.iconbitmap(f"ben_player.ico")
 
         Label(self, text="Are you sure you wish to end this exam?").pack()
         Button(self, text='No', command=self.destroy).pack(side=RIGHT, fill=BOTH, padx=5, pady=5)
@@ -199,9 +202,9 @@ class App(Toplevel):
     def __init__(self):
         super().__init__()
         self.geometry('1030x635')
-        self.state('zoomed')
+        # self.state('zoomed')
         self.title("Exam")
-        self.iconbitmap(f"{installation_folder}ben_player.ico")
+        self.iconbitmap(f"ben_player.ico")
 
         self.last_question = ""
         self.previous_question = ""
@@ -213,12 +216,25 @@ class App(Toplevel):
         self.checkbuttons = []
         self.answered_questions = ["", "", "", ""]
 
-        self.topframe = Frame(self)
+        self.canvas = Canvas(self)
+        self.canvas.pack(side="left", fill="both", expand=True)
+
+        # Create a scrollbar for the canvas
+        self.scrollbar = Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.scrollbar.pack(side="right", fill="y")
+
+        self.canvas.config(yscrollcommand=self.scrollbar.set)
+        self.frame = Frame(self.canvas)
+
+        self.topframe = Frame(self.frame)
         self.topframe.grid(row=0, column=0, sticky=W, pady=30)
-        self.optionframe = Frame(self)
+        self.optionframe = Frame(self.frame)
         self.optionframe.grid(row=1, column=0, columnspan=10, sticky=W)
-        self.bottomframe = Frame(self)
+        self.bottomframe = Frame(self.frame)
         self.bottomframe.grid(row=2, column=0, sticky=W)
+
+        self.canvas.create_window((0, 0), window=self.frame, anchor="nw")
+
         # Label to show the current question number
         self.count_label = Label(self.topframe,
                                  text=f"Item {self.current_index} of {len(json_data['questions']) - 1}  Q{self.current_question}")
@@ -226,11 +242,16 @@ class App(Toplevel):
 
         self.correct_counter_label = Label(self,
                                            text=f"Current Score: {self.correct_counter}/{get_amount_of_points()}")
-        self.correct_counter_label.place(relx=1, y=20, anchor=E)
+        self.correct_counter_label.place(relx=0.98, y=20, anchor=E)
+
         # Display the question text from the JSON data for the current index
-        self.Question = Message(self.topframe, text=json_data["questions"][f"Q{self.current_question}"]["Question"],
-                                width=700)
+        self.Question = Text(self.topframe, width=124, wrap="word")
+        self.Question.insert("1.0", json_data["questions"][f"Q{self.current_question}"]["Question"])
         self.Question.grid(row=1, column=0, sticky=W)
+        self.Question.config(state="disabled")
+
+        self.text_scrollbar = Scrollbar(self.topframe, orient="vertical", command=self.Question.yview)
+        self.text_scrollbar.grid(row=1, column=1, sticky="ns")
 
         self.image_label = Label(self.topframe)  # Label to hold the image
         self.image_label.grid(row=2, column=0, sticky=W)  # Adjust placement as needed
@@ -255,7 +276,31 @@ class App(Toplevel):
 
         # Button to end the exam
         self.end_exam_button = Button(self, text="End Exam", command=lambda: PopUpConfirmQuit(self))
-        self.end_exam_button.place(relx=1, rely=1, anchor='se', width=80)
+        self.end_exam_button.place(relx=0.98, rely=1, anchor='se', width=80)
+
+        self.frame.update_idletasks()
+        self.canvas.config(scrollregion=self.canvas.bbox("all"))
+        self.canvas.bind_all("<MouseWheel>", self.on_mouse_wheel_canvas)
+        self.Question.bind("<Enter>", self.on_enter_text)  # When entering the Text widget
+        self.Question.bind("<Leave>", self.on_leave_text)  # When leaving the Text widget
+
+    def on_mouse_wheel_canvas(self, event):
+        """Method to scroll the canvas when the mouse wheel is scrolled."""
+        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def on_enter_text(self, event):
+        """When mouse enters the Text widget, bind the mouse wheel to it."""
+        self.canvas.unbind_all("<MouseWheel>")
+        self.Question.bind("<MouseWheel>", self.on_mouse_wheel_text)
+
+    def on_leave_text(self, event):
+        """When mouse leaves the Text widget, bind the mouse wheel to canvas."""
+        self.Question.unbind("<MouseWheel>")
+        self.canvas.bind_all("<MouseWheel>", self.on_mouse_wheel_canvas)
+
+    def on_mouse_wheel_text(self, event):
+        """Method to scroll the Text widget when the mouse wheel is scrolled within the Text widget."""
+        self.Question.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def show_options(self, amount_of_answers, is_previous_question=False):
         if is_previous_question:
@@ -294,6 +339,7 @@ class App(Toplevel):
 
         check_answer = self.check_answer()
         if self.answer_viewed:
+            self.Question.delete("1.0", "end")
             self.image_label.config(image=None)
             self.image_label.image = None  # Keep a reference to the image
             self.answer_viewed = False
@@ -327,47 +373,65 @@ class App(Toplevel):
                         random_question = randrange(1, len(json_data["questions"]))
                         print("randomise!")
 
-                    """
-                    if random_question in self.answered_questions:
-                        random_question = randrange(1, len(json_data))
-                        print(random_question)
-                    """
-
                     # if the current question equals to the last question asked generate a new random question
                     # and take the current_index down by 1
-                    if self.current_question == self.last_question:
+                    if self.current_question == self.last_question and self.current_question not in self.answered_questions:
                         print("previous")
+                        print(self.last_question)
                         print(self.answered_questions)
                         self.current_question = random_question
                         print(self.current_question)
                         self.current_index -= 1
                     # If this is a new question randomise the question and append the current question to the
                     # answered questions list
+                    elif self.current_question not in self.answered_questions:
+                        self.last_question = self.current_question
+                        self.answered_questions.append(self.current_question)
+                        print(self.answered_questions)
+                        self.current_question = random_question
+                        print(self.current_question)
                     else:
+                        while random_question in self.answered_questions:
+                            random_question = randrange(1, len(json_data["questions"]))
+                            print("randomise!2.0")
                         self.last_question = self.current_question
                         self.answered_questions.append(self.current_question)
                         print(self.answered_questions)
                         self.current_question = random_question
                         print(self.current_question)
 
+
                 self.image_label.config(image=None)
                 self.image_label.image = None  # Keep a reference to the image
                 self.current_index += 1
-                self.find_images()
+                # self.find_images()
+                self.Question.delete("1.0", "end")
 
                 if f"Q{self.current_index}" in json_data['questions']:
+                    self.Question.config(state="normal")
+                    self.Question.delete("1.0", "end")
                     self.count_label.config(
                         text=f"Item {self.current_index} of {len(json_data['questions']) - 1}  Q{self.current_question}")
-                    self.Question.config(text=json_data["questions"][f"Q{self.current_question}"]["Question"])
+
+                    self.find_images(self.current_question)
+
                     amount_of_answers = json_data["questions"][f"Q{self.current_question}"]["Num of Answers"]
                     self.answers.config(text=f"Please only select {amount_of_answers} answer.")
                     self.show_options(amount_of_answers)  # Show options for the next question
                     self.correct_counter_label.config(
                         text=f"Current Score: {self.correct_counter}/{get_amount_of_points()}")
+                    self.Question.config(state="disabled")
+
 
             else:
+                percentage = (self.correct_counter / get_amount_of_points()) * 100
                 print("DONE")
-                self.Question.config(text="No more questions.")
+                self.Question.config(state="normal")
+                self.Question.delete("1.0", "end")
+                self.Question.insert("1.0", f"No more questions.\n"
+                                            f"you achieved: {self.correct_counter}/{get_amount_of_points()}\n"
+                                            f"{percentage}%")
+                self.Question.config(state="disabled")
                 self.answers.config(text="")
                 self.current_question = 0
                 for cb in self.checkbuttons:
@@ -388,14 +452,18 @@ class App(Toplevel):
             self.current_index -= 1
 
         if f"Q{self.current_question}" in json_data["questions"] and self.current_index > 0:
+            self.Question.config(state="normal")
+            self.Question.delete("1.0", "end")
             self.previous_question = self.answered_questions[self.current_index + 4]
             self.count_label.config(
                 text=f"Item {self.current_index} of {len(json_data['questions']) - 1}  Q{self.previous_question}")
-            self.Question.config(text=json_data["questions"][f"Q{self.previous_question}"]["Question"])
+
+            self.find_images(self.previous_question)
+
             amount_of_answers = json_data["questions"][f"Q{self.previous_question}"]["Num of Answers"]
             self.answers.config(text=f"Please only select {amount_of_answers} answer.")
             self.show_options(amount_of_answers, True)
-            self.find_images()
+            self.Question.config(state="disabled")
 
     def check_answer(self):
         if self.current_index == 0:
@@ -445,26 +513,34 @@ class App(Toplevel):
                                      text=f'Answer: {json_data["questions"][f"Q{self.current_question}"]["Answer"]}'
                                           f'\n\nExplanation:\n{json_data["questions"][f"Q{self.current_question}"]["Explanation"]}'
                                      , width=950, bg="yellow")
-            correct_answer.grid(row=0, column=0, sticky=W, columnspan=3)
+            correct_answer.grid(row=0, column=0, sticky=W, columnspan=3, pady=30)
             self.correct_answer.append(correct_answer)
             self.answer_viewed = True
+        self.frame.update_idletasks()
+        self.canvas.config(scrollregion=self.canvas.bbox("all"))
 
-    def find_images(self):
-        # Display the image if it
-        for i in json_data["questions"][f"Q{self.current_question}"]:
-            if i != "Explanation":
-                current_i = json_data["questions"][f"Q{self.current_question}"][i]
-                if "media/image" in str(current_i):
-                    found_image = re.search('image\d+.png', str(current_i))
-                    if found_image:
-                        image_key = found_image.group()  # This will return 'image_X'
-                        print(image_key)
-                        base64_string = json_data["images"].get(image_key, "")
-                        if base64_string:
-                            image = load_base64_image(base64_string)  # Adjust size if necessary
-                            if image:
-                                self.image_label.config(image=image)  # Update the label with the new image
-                                self.image_label.image = image  # Keep a reference to the image
+    def find_images(self, previous_next):
+        index_count = 1.0
+        img = None
+        images = {}
+        for line in json_data["questions"][f"Q{previous_next}"]["Question"].splitlines():
+            if "media/image" in line:
+                found_image = re.search('image\d+.png', line)
+                if found_image:
+                    image_key = found_image.group()  # This will return 'image_X'
+                    print(image_key)
+                    base64_string = json_data["images"].get(image_key, "")
+                    if base64_string:
+                        img = load_base64_image(base64_string)
+                        images[f"img{line}"] = img
+
+                self.Question.image = images
+                self.Question.image_create(index_count, image=img)
+                self.Question.insert(index_count + 1.0, "\n")
+
+            else:
+                self.Question.insert(index_count, line + "\n")
+            index_count += 1.0
 
 
 def load_base64_image(base64_string, width=None, height=None):
